@@ -1,0 +1,23 @@
+# Requiere Python 3.11 o superior.
+
+# Interfaz y API
+gradio>=5,<6
+fastapi
+uvicorn
+
+# Elasticsearch (la versión del cliente debe coincidir con la del servidor: 9.x)
+elasticsearch>=9,<10
+requests
+
+# Modelos: embeddings, rerankers y LLM
+torch
+transformers
+accelerate
+bitsandbytes
+sentence-transformers
+FlagEmbedding
+numpy
+
+# Utilidades
+python-dotenv
+tqdm

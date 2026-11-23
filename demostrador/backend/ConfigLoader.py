@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
-import yaml
+from typing import Optional, Dict
+from dotenv import load_dotenv
 import json
 import os
 
@@ -25,13 +25,15 @@ class GenerationModelConfig:
 class PromptsConfig:
     retrieval_system_prompt: str
     non_retrieval_system_prompt: str
+    # Respuesta fija cuando el contexto no contiene la información.
+    # El texto generado se corta justo después de ella.
+    no_answer_text: str
 
 @dataclass
 class ElasticConfig:
+    url: str
     username: str
     password: str
-    url: str
-    endpoint: str
 
 @dataclass
 class Config:
@@ -48,12 +50,11 @@ class Config:
     # Configuraciones generales
     num_docs_retrieval: int
     num_docs_reranker: int
-    elastic_config_path: str
-    hf_cache_dir: str
     prompts: PromptsConfig
-    
-    # Configuración de Elasticsearch (cargada desde archivo)
-    elastic_config: Optional[ElasticConfig] = None
+
+    # Datos que dependen de cada instalación: se leen del fichero .env
+    elastic_config: ElasticConfig
+    hf_cache_dir: Optional[str]  # None = carpeta por defecto de Hugging Face
 
 
 class ConfigLoader:
@@ -68,7 +69,7 @@ class ConfigLoader:
         Returns:
             Config: Objeto de configuración completo
         """
-        with open(config_path, 'r') as file:
+        with open(config_path, 'r', encoding='utf-8') as file:
             config_dict = json.load(file)
         
         # Parsear modelos de retrieval
@@ -100,9 +101,10 @@ class ConfigLoader:
         # Parsear prompts
         prompts = PromptsConfig(
             retrieval_system_prompt=config_dict['PROMPTS']['retrieval_system_prompt'],
-            non_retrieval_system_prompt=config_dict['PROMPTS']['non_retrieval_system_prompt']
+            non_retrieval_system_prompt=config_dict['PROMPTS']['non_retrieval_system_prompt'],
+            no_answer_text=config_dict['PROMPTS']['no_answer_text']
         )
-        
+
         # Crear el objeto de configuración
         config = Config(
             retrieval_models=retrieval_models,
@@ -111,38 +113,29 @@ class ConfigLoader:
             default_retriever=config_dict['DEFAULT_RETRIEVER'],
             default_reranker=config_dict['DEFAULT_RERANKER'],
             default_generator=config_dict['DEFAULT_GENERATOR'],
-            num_docs_retrieval=config_dict['NUM_DOCS_RETRIEVAL'],  # Nota: mantiene el typo del JSON original
+            num_docs_retrieval=config_dict['NUM_DOCS_RETRIEVAL'],
             num_docs_reranker=config_dict['NUM_DOCS_RERANKER'],
-            elastic_config_path=config_dict['ELASTIC_CONFIG'],
-            hf_cache_dir=config_dict['HF_CACHE_DIR'],
-            prompts=prompts
+            prompts=prompts,
+            elastic_config=ConfigLoader.load_elastic_from_env(),
+            hf_cache_dir=os.getenv('HF_CACHE_DIR') or None
         )
-        
-        # Cargar configuración de Elasticsearch si existe el archivo
-        if os.path.exists(config.elastic_config_path):
-            config.elastic_config = ConfigLoader.load_elastic(config.elastic_config_path)
-        
+
         return config
-    
+
     @staticmethod
-    def load_elastic(config_path: str) -> ElasticConfig:
+    def load_elastic_from_env() -> ElasticConfig:
         """
-        Carga la configuración de Elasticsearch desde un archivo YAML.
-        
-        Args:
-            config_path: Ruta al archivo config_elastic.yaml
-            
-        Returns:
-            ElasticConfig: Configuración de Elasticsearch
+        Lee la conexión a Elasticsearch del fichero .env (ver .env.example).
         """
-        with open(config_path, 'r') as file:
-            config_dict = yaml.safe_load(file)
+        load_dotenv()
+        password = os.getenv('ES_PASSWORD')
+        if not password:
+            raise ValueError("Falta ES_PASSWORD en el fichero .env (ver .env.example).")
 
         return ElasticConfig(
-            username=config_dict['username'],
-            password=config_dict['password'],
-            url=config_dict['elastic_url'],
-            endpoint=config_dict['api_endpoint']
+            url=os.getenv('ES_URL', 'http://localhost:9200'),
+            username=os.getenv('ES_USER', 'elastic'),
+            password=password
         )
 
 
@@ -156,7 +149,7 @@ if __name__ == "__main__":
     print("=" * 50)
     
     print(f"\nHF Cache Dir: {config.hf_cache_dir}")
-    print(f"Elastic Config Path: {config.elastic_config_path}")
+    print(f"Elasticsearch: {config.elastic_config.url}")
     print(f"Num Docs Retrieval: {config.num_docs_retrieval}")
     print(f"Num Docs Reranker: {config.num_docs_reranker}")
     

@@ -1,0 +1,27 @@
+# Elasticsearch para la demo, en un único nodo.
+#
+# Uso (desde la raíz del repositorio, con el fichero .env ya creado):
+#   docker compose up -d      # arranca Elasticsearch en segundo plano
+#   docker compose down       # lo detiene (los índices se conservan)
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.3
+    container_name: elasticsearch-demo-rag
+    environment:
+      - discovery.type=single-node
+      # Seguridad activada (usuario y contraseña), pero sin HTTPS para simplificar.
+      # El puerto solo se abre en localhost (ver "ports").
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ES_PASSWORD}
+      # Memoria para Elasticsearch: auméntala si indexas el corpus completo.
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      # Los índices se guardan en un volumen de Docker y sobreviven a reinicios
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  es_data:

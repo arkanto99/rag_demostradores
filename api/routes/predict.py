@@ -8,7 +8,7 @@ logger = logging.getLogger("RAG-API")
 router = APIRouter(prefix="", tags=["predict"])
 
 # Initialize RAG system once (adjust config path as needed)
-rag_system = RAG(config_file="/home/compartido/pabloF/rag_demostradores/demostrador/backend/configs/general_config.json")
+rag_system = RAG(config_file="demostrador/backend/configs/general_config.json")
 
 @router.post("/predict", response_model=PredictResponse, summary="Run RAG prediction")
 async def predict_endpoint(request: PredictRequest):

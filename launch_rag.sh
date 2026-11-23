@@ -1,7 +1,7 @@
 #!/bin/bash
+# Lanza la interfaz web de la demo. Ejecutar desde la raíz del repositorio,
+# con el entorno virtual activado y Elasticsearch en marcha.
 
-CONFIG=/home/compartido/pabloF/rag_demostradores/demostrador/backend/configs/general_config.json
-
-source /home/compartido/pabloF/venvs/demo-rag/bin/activate
+CONFIG=demostrador/backend/configs/general_config.json
 
 python3 -m demostrador.interfaz.rag_interface $CONFIG

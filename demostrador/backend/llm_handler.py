@@ -75,7 +75,7 @@ class LLMHandler:
     def _default_prompt_pre(self):
         """Prefix for context in RAG mode."""
         return (
-            "Context:\n"
+            "Contexto:\n"
             "-------------------------\n"
         )
 
@@ -83,8 +83,8 @@ class LLMHandler:
         """Suffix for context in RAG mode."""
         return (
             "-------------------------\n\n"
-            "The user will now ask a question related to the context. \n"
-            "Answer based only on the provided context. \n"
+            "A continuación, el usuario hará una pregunta relacionada con el contexto.\n"
+            "Responde basándote únicamente en el contexto anterior.\n"
         )
 
     # ----------------------------
@@ -154,8 +154,8 @@ class LLMHandler:
         print(response)
         print("-" * 60)
 
-        # Stop sequence cleanup
-        stop_sequence = "Non o sei."
+        # Si el modelo responde que no lo sabe, se corta ahí lo que haya generado después
+        stop_sequence = self.config.prompts.no_answer_text
         if stop_sequence in response:
             response = response.split(stop_sequence)[0] + stop_sequence
             

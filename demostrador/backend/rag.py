@@ -57,7 +57,9 @@ class RAG:
         else:
             embedding_model = None
 
-        # Define query functions
+        # Define query functions.
+        # En ambas se excluye el embedding de la respuesta: la demo no lo necesita
+        # y son 1024 números por fragmento.
         def bm25_query(search_query: str) -> Dict:
             return {
                 "query": {
@@ -65,18 +67,20 @@ class RAG:
                         "text": search_query,
                     },
                 },
+                "_source": {"excludes": ["text_embedding"]},
             }
-        
+
         def vector_query(search_query: str) -> Dict:
             vector = embedding_model.encode(search_query).tolist()
             return {
                 "knn": {
                     "field": "text_embedding",
                     "query_vector": vector,
-                }
+                },
+                "_source": {"excludes": ["text_embedding"]},
             }
-        
-        search_url = F"{self.config.elastic_config.endpoint}/{self.retriever_config.elastic_index}/_search?size={self.config.num_docs_retrieval}"
+
+        search_url = F"{self.config.elastic_config.url}/{self.retriever_config.elastic_index}/_search?size={self.config.num_docs_retrieval}"
         # Initialize reranker if needed
         reranker = None
         if self.reranker_config.model_name:  # Si model_name no está vacío
@@ -170,10 +174,11 @@ class RAG:
         source_text = ""
         context_text = ""
         for src in sources[:top_k]:
+            # Campos que guarda el indexador (indexer/build_index.py)
             meta = src.get("metadata")
-            source_id = meta.get("source_id", f"Praza-{meta.get('published_on')}")
-            title = meta.get("title", meta.get("headline", "Untitled"))
-            position = meta.get("relative_chunk_id", "-1")
+            source_id = f"{meta.get('source', '?')} {meta.get('date') or ''}".strip()
+            title = meta.get("title") or "Sin título"
+            position = meta.get("chunk_id", "-1")
             content = src["content"].replace("\n", " ")
             context_text += f"- [{src['id']}] **{title}** (Source={source_id}, Pos={position}): {content}\n"
         
@@ -219,7 +224,7 @@ if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
     
     # Initialize RAG with new config structure
-    rag = RAG("general_config.json")
+    rag = RAG("demostrador/backend/configs/general_config.json")
     
     print("\n" + "=" * 60)
     print("CONFIGURACIÓN ACTIVA")
@@ -233,7 +238,7 @@ if __name__ == "__main__":
     print(f"  - Model: {rag.generator_config.model_name}")
     print("=" * 60)
     
-    print("\nAsistente RAG en Galego (escriba 'sair' para rematar)")
+    print("\nAsistente RAG (escribe 'salir' para terminar)")
     print("Comandos especiales:")
     print("  - 'cambiar retriever <nombre>' - Cambiar modelo de retrieval")
     print("  - 'cambiar reranker <nombre>' - Cambiar modelo de reranking")
@@ -242,8 +247,8 @@ if __name__ == "__main__":
     while True:
         user_input = input("\nUsuario: ")
         
-        if user_input.lower() in ["sair", "quit", "exit"]:
-            print("Grazas por usar o asistente!")
+        if user_input.lower() in ["salir", "quit", "exit"]:
+            print("¡Gracias por usar el asistente!")
             break
         
         # Handle special commands
@@ -275,13 +280,13 @@ if __name__ == "__main__":
         
         print_sources = True
         if print_sources:
-            print("\n--- Fragmentos empregados ---")
+            print("\n--- Fragmentos recuperados ---")
             for source in sources:
                 source_id = source["id"]
                 content = source["content"]
-                metadata = source["metadata"]["_source"]
-                source_file = metadata.get("source_id", f"Praza-{metadata.get('published_on')}")
-                
+                metadata = source["metadata"]
+                source_file = f"{metadata.get('source')} {metadata.get('date')}: {metadata.get('title')}"
+
                 print(f"\nFragmento {source_id} - {source_file}")
                 print("-" * 40)
                 print(content)
